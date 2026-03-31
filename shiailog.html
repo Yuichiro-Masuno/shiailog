@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>shiailog</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap');
+
+:root {
+  --ink: #1a1a2e;
+  --ink-light: #4a4a6a;
+  --paper: #f5f0e8;
+  --paper-dark: #ede5d0;
+  --accent: #5a2d0c;
+  --accent-light: #7a4020;
+  --gold: #c9a84c;
+  --border: #d4c5a9;
+  --white: #fdfaf5;
+  --shadow: rgba(26,26,46,0.12);
+  --win: #1a5c2a;
+  --win-bg: #e8f5ec;
+  --lose: #7a1a1a;
+  --lose-bg: #f5e8e8;
+  --draw: #4a4a1a;
+  --draw-bg: #f5f5e8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { overflow-x: hidden; max-width: 100vw; }
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+header {
+  background: var(--ink);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+header h1 {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+}
+header span { font-size: 0.75rem; color: var(--border); }
+
+.tabs {
+  display: flex;
+  background: var(--ink);
+  border-top: 1px solid #2a2a4e;
+}
+.tab {
+  flex: 1;
+  padding: 10px 4px;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--border);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tab.active { color: var(--gold); border-bottom: 2px solid var(--gold); }
+
+main { padding: 16px; max-width: 640px; margin: 0 auto; }
+.view { display: none; }
+.view.active { display: block; }
+
+/* ─── CARD ─── */
+.card {
+  background: var(--white);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px var(--shadow);
+}
+.card-title {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+/* ─── FORM ─── */
+label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+input[type="text"], input[type="date"], select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.85rem;
+  background: var(--white);
+  color: var(--ink);
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+.select-wrap { position: relative; margin-bottom: 10px; }
+.select-wrap select { margin-bottom: 0; padding-right: 28px; }
+.select-wrap::after {
+  content: '▾';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-light);
+  pointer-events: none;
+  font-size: 0.75rem;
+}
+
+/* ─── RESULT BUTTONS ─── */
+.result-select-wrap { display: flex; gap: 8px; margin-bottom: 10px; }
+.result-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  border: 2px solid var(--border);
+  background: var(--white);
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--ink-light);
+  text-align: center;
+}
+.result-btn.active-win  { border-color: var(--win);  background: var(--win-bg);  color: var(--win);  font-weight: 700; }
+.result-btn.active-lose { border-color: var(--lose); background: var(--lose-bg); color: var(--lose); font-weight: 700; }
+.result-btn.active-draw { border-color: var(--draw); background: var(--draw-bg); color: var(--draw); font-weight: 700; }
+
+/* ─── MATCH ENTRY ─── */
+.match-entry {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.match-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.match-entry-title {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.btn-remove-match {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--ink-light);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.btn-remove-match:hover { border-color: #8b1a1a; color: #8b1a1a; }
+
+.waza-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.waza-group label { font-size: 0.7rem; }
+
+/* ─── 判定スコア ─── */
+.hantei-section {
+  background: var(--paper-dark);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.hantei-section-title {
+  font-size: 0.72rem;
+  color: var(--ink-light);
+  font-weight: 500;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.hantei-scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.hantei-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.hantei-player-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.hantei-player-name.me  { color: var(--win); }
+.hantei-player-name.opp { color: var(--lose); }
+.hantei-counter {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--white);
+}
+.hantei-btn {
+  width: 40px;
+  height: 44px;
+  border: none;
+  background: none;
+  font-size: 1.3rem;
+  color: var(--ink-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hantei-btn:active { background: var(--paper-dark); }
+.hantei-btn.minus { border-right: 1px solid var(--border); }
+.hantei-btn.plus  { border-left:  1px solid var(--border); }
+.hantei-num {
+  min-width: 44px;
+  text-align: center;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+  padding: 0 2px;
+}
+.hantei-num.me  { color: var(--win); }
+.hantei-num.opp { color: var(--lose); }
+.hantei-sep-display {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 1.1rem;
+  color: var(--ink-light);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ─── 動画アップロード ─── */
+.video-section {
+  margin-top: 4px;
+}
+.video-section-label {
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.video-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.video-item-icon { font-size: 1rem; flex-shrink: 0; }
+.video-item-info { flex: 1; min-width: 0; }
+.video-item-name {
+  font-size: 0.75rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.video-item-status {
+  font-size: 0.68rem;
+  color: var(--ink-light);
+  margin-top: 2px;
+}
+.video-item-status.uploading { color: var(--gold); }
+.video-item-status.done      { color: var(--win); }
+.video-item-status.error     { color: var(--lose); }
+.btn-remove-video {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--ink-light);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-remove-video:hover { border-color: #8b1a1a; color: #8b1a1a; }
+
+/* ファイル選択ボタン */
+.btn-upload-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--ink-light);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.btn-upload-file:hover { border-color: var(--accent); color: var(--accent); }
+.file-input-hidden { display: none; }
+
+/* ─── BUTTONS ─── */
+.btn-submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+.btn-submit:hover { background: var(--accent-light); }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-add {
+  width: 100%;
+  padding: 9px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--ink-light);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.15s;
+  margin-top: 6px;
+}
+.btn-add:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ─── LIST ─── */
+.tournament-item {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 1px 3px var(--shadow);
+}
+.tournament-item:hover { border-color: var(--accent); transform: translateY(-1px); }
+.tournament-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+.tournament-name {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1;
+  margin-right: 8px;
+}
+.result-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-win   { background: var(--win-bg);      color: var(--win);      border: 1px solid var(--win); }
+.badge-lose  { background: var(--lose-bg);     color: var(--lose);     border: 1px solid var(--lose); }
+.badge-draw  { background: var(--draw-bg);     color: var(--draw);     border: 1px solid var(--draw); }
+.badge-other { background: var(--paper-dark);  color: var(--ink-light); border: 1px solid var(--border); }
+
+.tournament-meta    { font-size: 0.72rem; color: var(--ink-light); margin-bottom: 4px; }
+.tournament-matches { font-size: 0.72rem; color: var(--ink-light); }
+
+/* ─── PAGINATION ─── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0 8px;
+}
+.btn-page {
+  padding: 7px 16px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-page:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn-page:disabled { opacity: 0.35; cursor: default; }
+.page-info { font-size: 0.78rem; color: var(--ink-light); }
+
+.empty-state { text-align: center; padding: 60px 20px; color: var(--ink-light); font-size: 0.85rem; }
+.empty-icon  { font-size: 3rem; margin-bottom: 12px; }
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(26,26,46,0.55);
+  z-index: 150;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--white);
+  width: 100%;
+  max-width: 640px;
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--ink-light); }
+
+.d-section {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gold);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin: 14px 0 10px;
+  letter-spacing: 0.05em;
+}
+.d-label { font-size: 0.7rem; color: var(--ink-light); margin-bottom: 2px; font-weight: 500; }
+.d-value { font-size: 0.88rem; margin-bottom: 10px; line-height: 1.7; }
+.d-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+
+/* 試合詳細カード */
+.match-detail-card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.match-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.match-vs { font-family: 'Noto Serif JP', serif; font-size: 0.85rem; font-weight: 700; color: var(--ink); }
+.match-result-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+
+.ippon-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  margin-top: 6px;
+}
+.ippon-table th {
+  background: var(--paper-dark);
+  color: var(--ink-light);
+  font-weight: 500;
+  padding: 4px 8px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+.ippon-table td {
+  padding: 5px 8px;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--white);
+}
+.me  { color: var(--win);  font-weight: 700; }
+.opp { color: var(--lose); font-weight: 700; }
+
+/* 判定スコア表示（詳細） */
+.hantei-score-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 12px;
+}
+.hantei-score-num { font-family: 'Noto Serif JP', serif; font-size: 1.05rem; font-weight: 700; }
+.hantei-score-num.me  { color: var(--win); }
+.hantei-score-num.opp { color: var(--lose); }
+.hantei-score-sep { font-size: 0.8rem; color: var(--ink-light); }
+
+/* 動画リンク（詳細） */
+.video-link-list { margin-top: 8px; }
+.video-link-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--paper-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  text-decoration: none;
+  transition: border-color 0.15s;
+  cursor: pointer;
+}
+.video-link-item:hover { border-color: var(--accent); }
+.video-link-icon { font-size: 1.1rem; flex-shrink: 0; }
+.video-link-text { font-size: 0.78rem; color: var(--accent); font-weight: 500; }
+
+/* ─── CONFIRM ─── */
+.confirm-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(26,26,46,0.55);
+  z-index: 400;
+  align-items: center;
+  justify-content: center;
+}
+.confirm-overlay.open { display: flex; }
+.confirm-dialog {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 24px 20px 16px;
+  width: 280px;
+  box-shadow: 0 8px 32px var(--shadow);
+}
+.confirm-msg { font-size: 0.88rem; color: var(--ink); line-height: 1.6; margin-bottom: 18px; text-align: center; }
+.confirm-btns { display: flex; gap: 8px; }
+.confirm-cancel {
+  flex: 1; padding: 10px; background: none;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.85rem; color: var(--ink-light); cursor: pointer;
+}
+.confirm-ok {
+  flex: 1; padding: 10px; background: #8b1a1a;
+  border: none; border-radius: 6px;
+  font-size: 0.85rem; color: var(--white); cursor: pointer;
+}
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--ink);
+  color: var(--gold);
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 0.82rem;
+  font-family: 'Noto Serif JP', serif;
+  z-index: 300;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>試合記録</h1>
+  <span>shiailog</span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('list')">📋 一覧</div>
+  <div class="tab" onclick="switchTab('new')">＋ 登録</div>
+</div>
+
+<main>
+
+<!-- ─── LIST ─── -->
+<div id="view-list" class="view active">
+  <div id="tournament-list"></div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- ─── NEW/EDIT ─── -->
+<div id="view-new" class="view">
+
+  <div class="card">
+    <div class="card-title" id="form-title">🏆 大会概要</div>
+
+    <label>開催年月日 <span style="color:#c0392b;font-size:0.7rem;">※必須</span></label>
+    <input type="date" id="f-date">
+
+    <label>大会名 <span style="color:#c0392b;font-size:0.7rem;">※必須</span></label>
+    <input type="text" id="f-name" placeholder="例：第○○回 ○○剣道大会">
+
+    <label>会場</label>
+    <input type="text" id="f-venue" placeholder="例：○○市民体育館">
+
+    <label>主催団体</label>
+    <input type="text" id="f-organizer" placeholder="例：○○市剣道連盟">
+
+    <label>レベル</label>
+    <div class="select-wrap">
+      <select id="f-level">
+        <option value="">─ 選択 ─</option>
+        <option value="市区">市区</option>
+        <option value="都道府県">都道府県</option>
+        <option value="地域">地域</option>
+        <option value="全国">全国</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+
+    <label>結果</label>
+    <div class="result-select-wrap">
+      <button class="result-btn" id="rb-win"  onclick="setResult('優勝')">🥇 優勝</button>
+      <button class="result-btn" id="rb-lose" onclick="setResult('準優勝')">🥈 準優勝</button>
+      <button class="result-btn" id="rb-draw" onclick="setResult('3位')">🥉 3位</button>
+    </div>
+    <input type="text" id="f-result-text" placeholder="その他の結果（例：ベスト8、初戦敗退）">
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚔️ 試合結果</div>
+    <div id="matches-container"></div>
+    <button class="btn-add" onclick="addMatch()">＋ 試合を追加</button>
+  </div>
+
+  <button class="btn-submit" id="btn-submit" onclick="saveTournament()">登録する</button>
+  <button class="btn-add" id="btn-back-to-list" style="display:none;margin-top:8px;" onclick="switchTab('list')">← 一覧に戻る</button>
+</div>
+
+</main>
+
+<!-- ─── DETAIL MODAL ─── -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- ─── CONFIRM ─── -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-dialog">
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" id="confirm-cancel">キャンセル</button>
+      <button class="confirm-ok"     id="confirm-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───
+const SUPABASE_URL    = 'https://hnkncnqktdftxuupvypp.supabase.co';
+const SUPABASE_KEY    = 'ここにanon_keyを貼り付けてください';
+const STORAGE_BUCKET  = 'shiai-videos';  // Supabase Storage バケット名
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ─── STATE ───
+let tournaments    = [];
+let currentPage    = 1;
+const PAGE_SIZE    = 10;
+let editingId      = null;
+let selectedResult = '';
+let matchCount     = 0;
+
+// matchIdx → [ { file, name, url, status: 'pending'|'uploading'|'done'|'error' } ]
+const videoMap = {};
+
+// 判定スコア  matchIdx → { me: 0, opp: 0 }
+const hanteiMap = {};
+
+const WAZA_OPTIONS = ['面', '小手', '胴', '突'];
+
+// ─── INIT ───
+(async () => { await syncFromSupabase(); })();
+
+async function syncFromSupabase() {
+  try {
+    showToast('同期中…');
+    const { data, error } = await sb
+      .from('shiai_tournaments')
+      .select('*, shiai_matches(*)')
+      .order('date', { ascending: false });
+    if (error) throw error;
+    tournaments = data || [];
+    renderList();
+    showToast('同期完了');
+  } catch(e) {
+    renderList();
+    showToast('オフラインモード');
+  }
+}
+
+// ─── TABS ───
+function switchTab(tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  document.querySelectorAll('.tab')[['list','new'].indexOf(tab)].classList.add('active');
+  if (tab === 'new' && !editingId) resetForm();
+  if (tab === 'list') renderList();
+}
+
+function setResult(val) {
+  selectedResult = selectedResult === val ? '' : val;
+  document.getElementById('rb-win').className  = 'result-btn';
+  document.getElementById('rb-lose').className = 'result-btn';
+  document.getElementById('rb-draw').className = 'result-btn';
+  if (selectedResult === '優勝')   document.getElementById('rb-win').classList.add('active-win');
+  if (selectedResult === '準優勝') document.getElementById('rb-lose').classList.add('active-lose');
+  if (selectedResult === '3位')    document.getElementById('rb-draw').classList.add('active-draw');
+}
+
+// ─── 判定スコア ───
+function changeHantei(matchIdx, side, delta) {
+  if (!hanteiMap[matchIdx]) hanteiMap[matchIdx] = { me: 0, opp: 0 };
+  const current = hanteiMap[matchIdx][side];
+  hanteiMap[matchIdx][side] = Math.min(5, Math.max(0, current + delta));
+  const numEl = document.getElementById(`m${matchIdx}-hantei-${side}-num`);
+  if (numEl) {
+    numEl.textContent = hanteiMap[matchIdx][side];
+    numEl.className = `hantei-num ${side}`;
+  }
+}
+
+function setHantei(matchIdx, me, opp) {
+  hanteiMap[matchIdx] = { me: me ?? 0, opp: opp ?? 0 };
+  const meEl  = document.getElementById(`m${matchIdx}-hantei-me-num`);
+  const oppEl = document.getElementById(`m${matchIdx}-hantei-opp-num`);
+  if (meEl)  meEl.textContent  = hanteiMap[matchIdx].me;
+  if (oppEl) oppEl.textContent = hanteiMap[matchIdx].opp;
+}
+
+// ─── MATCH FORM ───
+function addMatch(data = null) {
+  matchCount++;
+  const idx = matchCount;
+  videoMap[idx]   = [];
+  hanteiMap[idx]  = { me: data?.hantei_me ?? 0, opp: data?.hantei_opp ?? 0 };
+
+  const container = document.getElementById('matches-container');
+
+  const makeWazaSelect = (id, val) => {
+    const opts = ['', ...WAZA_OPTIONS].map(w =>
+      `<option value="${w}"${val===w?' selected':''}>${w||'─'}</option>`
+    ).join('');
+    return `<div class="select-wrap"><select id="${id}">${opts}</select></div>`;
+  };
+  const makePlayerSelect = (id, val) => {
+    const opts = ['','自分','相手'].map(p =>
+      `<option value="${p}"${val===p?' selected':''}>${p||'─'}</option>`
+    ).join('');
+    return `<div class="select-wrap"><select id="${id}">${opts}</select></div>`;
+  };
+
+  const div = document.createElement('div');
+  div.className = 'match-entry';
+  div.id = `match-${idx}`;
+  div.innerHTML = `
+    <div class="match-entry-header">
+      <div class="match-entry-title">第${idx}試合</div>
+      <button class="btn-remove-match" onclick="removeMatch(${idx})">削除</button>
+    </div>
+
+    <label>対戦相手</label>
+    <input type="text" id="m${idx}-opponent" placeholder="例：田中 一郎" value="${data?.opponent||''}">
+    <label>所属</label>
+    <input type="text" id="m${idx}-affiliation" placeholder="例：○○剣道クラブ" value="${data?.affiliation||''}">
+
+    <div class="waza-row">
+      <div class="waza-group"><label>１本目</label>${makeWazaSelect(`m${idx}-ippon1-waza`,data?.ippon1_waza||'')}</div>
+      <div class="waza-group"><label>１本目取得</label>${makePlayerSelect(`m${idx}-ippon1-player`,data?.ippon1_player||'')}</div>
+    </div>
+    <div class="waza-row">
+      <div class="waza-group"><label>２本目</label>${makeWazaSelect(`m${idx}-ippon2-waza`,data?.ippon2_waza||'')}</div>
+      <div class="waza-group"><label>２本目取得</label>${makePlayerSelect(`m${idx}-ippon2-player`,data?.ippon2_player||'')}</div>
+    </div>
+    <div class="waza-row">
+      <div class="waza-group"><label>勝負</label>${makeWazaSelect(`m${idx}-shoubu-waza`,data?.shoubu_waza||'')}</div>
+      <div class="waza-group"><label>勝負取得</label>${makePlayerSelect(`m${idx}-shoubu-player`,data?.shoubu_player||'')}</div>
+    </div>
+
+    <!-- 判定スコア -->
+    <div class="hantei-section">
+      <div class="hantei-section-title">判定スコア（旗の本数）</div>
+      <div class="hantei-scoreboard">
+        <div class="hantei-player">
+          <span class="hantei-player-name me">自分</span>
+          <div class="hantei-counter">
+            <button class="hantei-btn minus" onclick="changeHantei(${idx},'me',-1)">－</button>
+            <span class="hantei-num me" id="m${idx}-hantei-me-num">${hanteiMap[idx].me}</span>
+            <button class="hantei-btn plus"  onclick="changeHantei(${idx},'me',+1)">＋</button>
+          </div>
+        </div>
+        <span class="hantei-sep-display">対</span>
+        <div class="hantei-player">
+          <span class="hantei-player-name opp">相手</span>
+          <div class="hantei-counter">
+            <button class="hantei-btn minus" onclick="changeHantei(${idx},'opp',-1)">－</button>
+            <span class="hantei-num opp" id="m${idx}-hantei-opp-num">${hanteiMap[idx].opp}</span>
+            <button class="hantei-btn plus"  onclick="changeHantei(${idx},'opp',+1)">＋</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 動画 -->
+    <div class="video-section">
+      <div class="video-section-label">📹 試合動画</div>
+      <div id="m${idx}-video-list"></div>
+      <input type="file" id="m${idx}-file-input" class="file-input-hidden"
+             accept="video/*" multiple onchange="handleFileSelect(${idx}, this)">
+      <button class="btn-upload-file" onclick="document.getElementById('m${idx}-file-input').click()">
+        ＋ 動画ファイルを追加
+      </button>
+    </div>
+  `;
+  container.appendChild(div);
+
+  // 編集時：既存の動画を表示
+  if (data?.video_urls && Array.isArray(data.video_urls)) {
+    data.video_urls.forEach(url => {
+      if (!url) return;
+      const fileName = url.split('/').pop().split('?')[0];
+      addVideoItem(idx, { file: null, name: decodeURIComponent(fileName), url, status: 'done' });
+    });
+  }
+}
+
+function removeMatch(idx) {
+  const el = document.getElementById(`match-${idx}`);
+  if (el) el.remove();
+  delete videoMap[idx];
+  delete hanteiMap[idx];
+}
+
+// ─── VIDEO ───
+function handleFileSelect(matchIdx, input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    addVideoItem(matchIdx, { file, name: file.name, url: null, status: 'pending' });
+  });
+  input.value = '';
+}
+
+function addVideoItem(matchIdx, item) {
+  if (!videoMap[matchIdx]) videoMap[matchIdx] = [];
+  const itemIdx = videoMap[matchIdx].length;
+  videoMap[matchIdx].push(item);
+
+  const list = document.getElementById(`m${matchIdx}-video-list`);
+  if (!list) return;
+
+  const div = document.createElement('div');
+  div.className = 'video-item';
+  div.id = `m${matchIdx}-vi${itemIdx}`;
+  div.innerHTML = `
+    <span class="video-item-icon">🎬</span>
+    <div class="video-item-info">
+      <div class="video-item-name">${item.name}</div>
+      <div class="video-item-status ${item.status}" id="m${matchIdx}-vi${itemIdx}-status">
+        ${item.status==='done' ? '登録済み' : '未アップロード'}
+      </div>
+    </div>
+    <button class="btn-remove-video" onclick="removeVideoItem(${matchIdx},${itemIdx})">削除</button>
+  `;
+  list.appendChild(div);
+}
+
+function removeVideoItem(matchIdx, itemIdx) {
+  if (videoMap[matchIdx]) videoMap[matchIdx][itemIdx] = null;
+  const el = document.getElementById(`m${matchIdx}-vi${itemIdx}`);
+  if (el) el.remove();
+}
+
+function updateVideoStatus(matchIdx, itemIdx, status, text) {
+  const el = document.getElementById(`m${matchIdx}-vi${itemIdx}-status`);
+  if (el) { el.className = `video-item-status ${status}`; el.textContent = text; }
+}
+
+async function uploadVideosForMatch(matchIdx, tournamentId) {
+  const items = videoMap[matchIdx] || [];
+  const urls  = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item) continue;
+
+    // すでにアップ済み（編集時の既存動画）
+    if (item.status === 'done' && item.url) {
+      urls.push(item.url);
+      continue;
+    }
+
+    // 新規アップロード
+    if (item.file) {
+      updateVideoStatus(matchIdx, i, 'uploading', 'アップロード中…');
+      const ext  = item.file.name.split('.').pop();
+      const path = `${tournamentId}/match${matchIdx}_${Date.now()}_${i}.${ext}`;
+      const { data, error } = await sb.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, item.file, { upsert: false });
+
+      if (error) {
+        updateVideoStatus(matchIdx, i, 'error', 'エラー');
+        console.error('Upload error:', error);
+        continue;
+      }
+
+      const { data: urlData } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      const publicUrl = urlData?.publicUrl || '';
+      videoMap[matchIdx][i] = { ...item, url: publicUrl, status: 'done' };
+      updateVideoStatus(matchIdx, i, 'done', '完了');
+      urls.push(publicUrl);
+    }
+  }
+  return urls;
+}
+
+function getMatchIndices() {
+  return Array.from(document.querySelectorAll('.match-entry'))
+    .map(el => el.id.replace('match-', ''));
+}
+
+// ─── SAVE ───
+async function saveTournament() {
+  const date = document.getElementById('f-date').value;
+  const name = document.getElementById('f-name').value.trim();
+  if (!date || !name) { showToast('日付と大会名は必須です'); return; }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+
+  const resultText   = document.getElementById('f-result-text').value.trim();
+  const finalResult  = selectedResult || resultText || null;
+  const tournamentId = editingId || 'tournament_' + Date.now();
+
+  const tournamentData = {
+    id:        tournamentId,
+    date,
+    name,
+    venue:     document.getElementById('f-venue').value.trim()     || null,
+    organizer: document.getElementById('f-organizer').value.trim() || null,
+    level:     document.getElementById('f-level').value            || null,
+    result:    finalResult
+  };
+
+  try {
+    // 試合データを組み立て（動画アップロード含む）
+    const matchIndices = getMatchIndices();
+    const matchesData  = [];
+
+    for (let order = 0; order < matchIndices.length; order++) {
+      const idx     = matchIndices[order];
+      const h       = hanteiMap[idx] || { me: 0, opp: 0 };
+      const videoUrls = await uploadVideosForMatch(idx, tournamentId);
+
+      matchesData.push({
+        id:            `match_${tournamentId}_${idx}`,
+        tournament_id: tournamentId,
+        match_order:   order + 1,
+        opponent:      document.getElementById(`m${idx}-opponent`)?.value.trim()    || null,
+        affiliation:   document.getElementById(`m${idx}-affiliation`)?.value.trim() || null,
+        ippon1_waza:   document.getElementById(`m${idx}-ippon1-waza`)?.value         || null,
+        ippon1_player: document.getElementById(`m${idx}-ippon1-player`)?.value       || null,
+        ippon2_waza:   document.getElementById(`m${idx}-ippon2-waza`)?.value         || null,
+        ippon2_player: document.getElementById(`m${idx}-ippon2-player`)?.value       || null,
+        shoubu_waza:   document.getElementById(`m${idx}-shoubu-waza`)?.value         || null,
+        shoubu_player: document.getElementById(`m${idx}-shoubu-player`)?.value       || null,
+        hantei_me:     h.me,
+        hantei_opp:    h.opp,
+        video_urls:    videoUrls
+      });
+    }
+
+    // DB保存
+    const { error: te } = await sb.from('shiai_tournaments').upsert(tournamentData);
+    if (te) throw new Error('大会保存エラー：' + te.message);
+
+    if (editingId) {
+      await sb.from('shiai_matches').delete().eq('tournament_id', editingId);
+    }
+    if (matchesData.length > 0) {
+      const { error: me } = await sb.from('shiai_matches').insert(matchesData);
+      if (me) throw new Error('試合保存エラー：' + me.message);
+    }
+
+    tournamentData.shiai_matches = matchesData;
+    if (editingId) {
+      const i = tournaments.findIndex(t => t.id === editingId);
+      if (i !== -1) tournaments[i] = tournamentData;
+      showToast('更新しました');
+    } else {
+      tournaments.unshift(tournamentData);
+      showToast('登録しました');
+    }
+    editingId = null;
+    switchTab('list');
+
+  } catch(e) {
+    alert(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editingId ? '更新する' : '登録する';
+  }
+}
+
+// ─── LIST ───
+function renderList() {
+  const container = document.getElementById('tournament-list');
+  if (!container) return;
+
+  if (!tournaments.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>試合記録がまだありません</p></div>`;
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  const totalPages = Math.ceil(tournaments.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+  const start = (currentPage - 1) * PAGE_SIZE;
+
+  container.innerHTML = tournaments.slice(start, start + PAGE_SIZE).map(t => {
+    const matches    = t.shiai_matches || [];
+    const resultCls  = getResultClass(t.result);
+    const levelLabel = t.level ? `[${t.level}] ` : '';
+    return `
+      <div class="tournament-item" onclick="showDetail('${t.id}')">
+        <div class="tournament-item-header">
+          <div class="tournament-name">${t.name}</div>
+          ${t.result ? `<span class="result-badge badge-${resultCls}">${t.result}</span>` : ''}
+        </div>
+        <div class="tournament-meta">${t.date}　${levelLabel}${t.venue||''}</div>
+        ${t.organizer ? `<div class="tournament-meta">${t.organizer}</div>` : ''}
+        <div class="tournament-matches">${matches.length > 0 ? `試合数：${matches.length}` : '試合記録なし'}</div>
+      </div>
+    `;
+  }).join('');
+
+  const pag = document.getElementById('pagination');
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+  pag.innerHTML = `
+    <button class="btn-page" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>← 前へ</button>
+    <span class="page-info">${currentPage} / ${totalPages}</span>
+    <button class="btn-page" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>次へ →</button>
+  `;
+}
+
+function getResultClass(r) {
+  if (!r) return 'other';
+  if (r==='優勝') return 'win';
+  if (r==='準優勝'||r==='3位') return 'draw';
+  if (['負け','敗退','初戦敗退'].some(w=>r.includes(w))) return 'lose';
+  return 'other';
+}
+
+function goPage(page) { currentPage = page; renderList(); window.scrollTo(0,0); }
+
+// ─── DETAIL ───
+function showDetail(id) {
+  const t = tournaments.find(t => t.id === id);
+  if (!t) return;
+  const matches   = (t.shiai_matches||[]).sort((a,b)=>(a.match_order||0)-(b.match_order||0));
+  const resultCls = getResultClass(t.result);
+
+  const matchesHtml = matches.length
+    ? matches.map((m,i) => buildMatchDetailHtml(m,i)).join('')
+    : '<div style="text-align:center;padding:16px;color:var(--ink-light);font-size:0.82rem;">試合記録なし</div>';
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header">
+      <div class="modal-title">大会詳細</div>
+      <button class="btn-close" onclick="closeModal()">×</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+      <div style="font-family:'Noto Serif JP',serif;font-size:1.05rem;font-weight:700;flex:1;margin-right:8px;">${t.name}</div>
+      ${t.result ? `<span class="result-badge badge-${resultCls}">${t.result}</span>` : ''}
+    </div>
+    <div class="d-grid">
+      <div><div class="d-label">開催日</div><div class="d-value">${t.date}</div></div>
+      ${t.level     ? `<div><div class="d-label">レベル</div><div class="d-value">${t.level}</div></div>`     : ''}
+      ${t.venue     ? `<div><div class="d-label">会場</div><div class="d-value">${t.venue}</div></div>`       : ''}
+      ${t.organizer ? `<div><div class="d-label">主催</div><div class="d-value">${t.organizer}</div></div>`   : ''}
+    </div>
+    <div class="d-section">⚔️ 試合結果</div>
+    ${matchesHtml}
+    <button class="btn-submit" style="margin-top:8px;" onclick="editTournament('${t.id}')">編集する</button>
+    <button style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;color:#8b1a1a;cursor:pointer;" onclick="showConfirm('この大会記録を削除しますか？',()=>deleteTournament('${t.id}'))">削除する</button>
+    <button class="btn-add" style="margin-top:6px;" onclick="closeModal()">← 一覧に戻る</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function buildMatchDetailHtml(m, i) {
+  const res      = calcMatchResult(m);
+  const badgeCls = res==='勝ち'?'badge-win':res==='負け'?'badge-lose':res==='引き分け'?'badge-draw':'badge-other';
+
+  // 判定スコア行
+  let hanteiRow = '';
+  if ((m.hantei_me != null && m.hantei_me !== 0) || (m.hantei_opp != null && m.hantei_opp !== 0)) {
+    const me  = m.hantei_me  ?? 0;
+    const opp = m.hantei_opp ?? 0;
+    hanteiRow = `
+      <tr>
+        <td colspan="2" style="text-align:left;padding-left:8px;font-size:0.72rem;color:var(--ink-light);">判定スコア</td>
+        <td>
+          <span class="hantei-score-display">
+            <span class="hantei-score-num me">${me}</span>
+            <span class="hantei-score-sep">対</span>
+            <span class="hantei-score-num opp">${opp}</span>
+          </span>
+        </td>
+      </tr>`;
+  }
+
+  // 動画リンク
+  const videos = Array.isArray(m.video_urls) ? m.video_urls.filter(Boolean) : [];
+  const videosHtml = videos.length ? `
+    <div style="margin-top:10px;">
+      <div class="d-label" style="margin-bottom:5px;">📹 試合動画</div>
+      <div class="video-link-list">
+        ${videos.map((url,vi) => `
+          <a class="video-link-item" href="${url}" target="_blank" rel="noopener">
+            <span class="video-link-icon">🎬</span>
+            <span class="video-link-text">動画 ${vi+1}</span>
+          </a>`).join('')}
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="match-detail-card">
+      <div class="match-detail-header">
+        <div class="match-vs">第${m.match_order||i+1}試合　vs ${m.opponent||'相手不明'}${m.affiliation?`（${m.affiliation}）`:''}</div>
+        <span class="match-result-badge ${badgeCls}">${res}</span>
+      </div>
+      <table class="ippon-table">
+        <tr><th>場面</th><th>技</th><th>取得</th></tr>
+        ${m.ippon1_waza  ?`<tr><td>１本目</td><td>${m.ippon1_waza}</td><td class="${m.ippon1_player==='自分'?'me':'opp'}">${m.ippon1_player||'─'}</td></tr>`:''}
+        ${m.ippon2_waza  ?`<tr><td>２本目</td><td>${m.ippon2_waza}</td><td class="${m.ippon2_player==='自分'?'me':'opp'}">${m.ippon2_player||'─'}</td></tr>`:''}
+        ${m.shoubu_waza  ?`<tr><td>勝負</td><td>${m.shoubu_waza}</td><td class="${m.shoubu_player==='自分'?'me':'opp'}">${m.shoubu_player||'─'}</td></tr>`:''}
+        ${hanteiRow}
+      </table>
+      ${videosHtml}
+    </div>`;
+}
+
+function calcMatchResult(m) {
+  if (m.shoubu_player === '自分') return '勝ち';
+  if (m.shoubu_player === '相手') return '負け';
+  if ((m.hantei_me != null) && (m.hantei_opp != null)) {
+    if (m.hantei_me  > m.hantei_opp) return '勝ち';
+    if (m.hantei_opp > m.hantei_me)  return '負け';
+    if (m.hantei_me === m.hantei_opp && m.hantei_me > 0) return '引き分け';
+  }
+  const my  = [m.ippon1_player,m.ippon2_player].filter(p=>p==='自分').length;
+  const opp = [m.ippon1_player,m.ippon2_player].filter(p=>p==='相手').length;
+  if (my > opp)  return '勝ち';
+  if (opp > my)  return '負け';
+  if (my > 0 || opp > 0) return '引き分け';
+  return '─';
+}
+
+// ─── EDIT ───
+function editTournament(id) {
+  const t = tournaments.find(t => t.id === id);
+  if (!t) return;
+  closeModal();
+  editingId = id;
+
+  document.getElementById('form-title').textContent         = '🏆 大会概要（編集）';
+  document.getElementById('btn-submit').textContent         = '更新する';
+  document.getElementById('btn-back-to-list').style.display = 'block';
+
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(tb => tb.classList.remove('active'));
+  document.getElementById('view-new').classList.add('active');
+  document.querySelectorAll('.tab')[1].classList.add('active');
+
+  document.getElementById('f-date').value      = t.date      || '';
+  document.getElementById('f-name').value      = t.name      || '';
+  document.getElementById('f-venue').value     = t.venue     || '';
+  document.getElementById('f-organizer').value = t.organizer || '';
+  document.getElementById('f-level').value     = t.level     || '';
+
+  selectedResult = '';
+  ['rb-win','rb-lose','rb-draw'].forEach(id => document.getElementById(id).className = 'result-btn');
+  if      (t.result==='優勝')   { selectedResult='優勝';   document.getElementById('rb-win').classList.add('active-win'); }
+  else if (t.result==='準優勝') { selectedResult='準優勝'; document.getElementById('rb-lose').classList.add('active-lose'); }
+  else if (t.result==='3位')    { selectedResult='3位';    document.getElementById('rb-draw').classList.add('active-draw'); }
+  else { document.getElementById('f-result-text').value = t.result || ''; }
+
+  document.getElementById('matches-container').innerHTML = '';
+  matchCount = 0;
+  Object.keys(videoMap).forEach(k => delete videoMap[k]);
+  Object.keys(hanteiMap).forEach(k => delete hanteiMap[k]);
+  (t.shiai_matches||[]).sort((a,b)=>(a.match_order||0)-(b.match_order||0)).forEach(m => addMatch(m));
+}
+
+// ─── DELETE ───
+async function deleteTournament(id) {
+  try {
+    await sb.from('shiai_matches').delete().eq('tournament_id', id);
+    const { error } = await sb.from('shiai_tournaments').delete().eq('id', id);
+    if (error) throw error;
+    tournaments = tournaments.filter(t => t.id !== id);
+    renderList();
+    closeModal();
+    showToast('削除しました');
+  } catch(e) { alert('削除エラー：' + e.message); }
+}
+
+// ─── RESET ───
+function resetForm() {
+  editingId = null; matchCount = 0; selectedResult = '';
+  Object.keys(videoMap).forEach(k => delete videoMap[k]);
+  Object.keys(hanteiMap).forEach(k => delete hanteiMap[k]);
+  ['f-date','f-name','f-venue','f-organizer','f-result-text'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-level').value = '';
+  ['rb-win','rb-lose','rb-draw'].forEach(id => document.getElementById(id).className = 'result-btn');
+  document.getElementById('matches-container').innerHTML    = '';
+  document.getElementById('form-title').textContent         = '🏆 大会概要';
+  document.getElementById('btn-submit').textContent         = '登録する';
+  document.getElementById('btn-back-to-list').style.display = 'none';
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay'))
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function showConfirm(msg, onOk) {
+  const ov = document.getElementById('confirm-overlay');
+  document.getElementById('confirm-msg').textContent = msg;
+  ov.classList.add('open');
+  document.getElementById('confirm-ok').onclick     = () => { ov.classList.remove('open'); onOk(); };
+  document.getElementById('confirm-cancel').onclick = () => ov.classList.remove('open');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
