@@ -133,6 +133,21 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   font-size: 0.75rem;
 }
 
+/* ─── 竹刀バッジ ─── */
+.shinai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+.shinai-badge-icon { font-size: 0.9rem; }
+
 /* ─── RESULT BUTTONS ─── */
 .result-select-wrap { display: flex; gap: 8px; margin-bottom: 10px; }
 .result-btn {
@@ -708,7 +723,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script>
 // ─── CONFIG ───
 const SUPABASE_URL    = 'https://hnkncnqktdftxuupvypp.supabase.co';
-const SUPABASE_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhua25jbnFrdGRmdHh1dXB2eXBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjI3MTAsImV4cCI6MjA4OTI5ODcxMH0.QX75EilYZ2oj-IcUgxJniIrxhZHV3nhGI14fq-sS0F8';
+const SUPABASE_KEY    = 'ここにanon_keyを貼り付けてください';
 const STORAGE_BUCKET  = 'shiai-videos';  // Supabase Storage バケット名
 
 const { createClient } = supabase;
@@ -716,6 +731,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ─── STATE ───
 let tournaments    = [];
+let shinaiList     = [];   // 試合用竹刀リスト
 let currentPage    = 1;
 const PAGE_SIZE    = 10;
 let editingId      = null;
@@ -731,7 +747,41 @@ const hanteiMap = {};
 const WAZA_OPTIONS = ['面', '小手', '胴', '突'];
 
 // ─── INIT ───
-(async () => { await syncFromSupabase(); })();
+(async () => {
+  await loadShinaiList();
+  await syncFromSupabase();
+})();
+
+// ─── 竹刀リスト取得（shinaimaster から試合用のみ）───
+async function loadShinaiList() {
+  try {
+    const { data, error } = await sb
+      .from('shinai')
+      .select('id, name, length, weight')
+      .eq('use_type', '試合用')
+      .order('name');
+    if (error) throw error;
+    shinaiList = data || [];
+    populateShinaiSelect();
+  } catch(e) {
+    // shinaimasterテーブルがなくてもエラーにしない
+    shinaiList = [];
+  }
+}
+
+function populateShinaiSelect() {
+  const sel = document.getElementById('f-shinai');
+  if (!sel) return;
+  // 既存オプションをクリア（最初の「─ 選択 ─」は残す）
+  while (sel.options.length > 1) sel.remove(1);
+  shinaiList.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    const detail = [s.length ? `${s.length}` : '', s.weight ? `${s.weight}g` : ''].filter(Boolean).join('・');
+    opt.textContent = detail ? `${s.name}（${detail}）` : s.name;
+    sel.appendChild(opt);
+  });
+}
 
 async function syncFromSupabase() {
   try {
@@ -837,6 +887,15 @@ function addMatch(data = null) {
     <div class="waza-row">
       <div class="waza-group"><label>勝負</label>${makeWazaSelect(`m${idx}-shoubu-waza`,data?.shoubu_waza||'')}</div>
       <div class="waza-group"><label>勝負取得</label>${makePlayerSelect(`m${idx}-shoubu-player`,data?.shoubu_player||'')}</div>
+    </div>
+
+    <!-- 使用竹刀 -->
+    <label>使用竹刀</label>
+    <div class="select-wrap">
+      <select id="m${idx}-shinai">
+        <option value="">─ 選択 ─</option>
+        ${shinaiList.map(s => `<option value="${s.id}"${data?.shinai_id===s.id?' selected':''}>${s.name}</option>`).join('')}
+      </select>
     </div>
 
     <!-- 判定スコア -->
@@ -1027,6 +1086,7 @@ async function saveTournament() {
         ippon2_player: document.getElementById(`m${idx}-ippon2-player`)?.value       || null,
         shoubu_waza:   document.getElementById(`m${idx}-shoubu-waza`)?.value         || null,
         shoubu_player: document.getElementById(`m${idx}-shoubu-player`)?.value       || null,
+        shinai_id:     document.getElementById(`m${idx}-shinai`)?.value              || null,
         hantei_me:     h.me,
         hantei_opp:    h.opp,
         video_urls:    videoUrls
@@ -1155,6 +1215,13 @@ function buildMatchDetailHtml(m, i) {
   const res      = calcMatchResult(m);
   const badgeCls = res==='勝ち'?'badge-win':res==='負け'?'badge-lose':res==='引き分け'?'badge-draw':'badge-other';
 
+  // 竹刀バッジ
+  const shinai = shinaiList.find(s => s.id === m.shinai_id);
+  const shinaiHtml = shinai ? `
+    <div style="margin-bottom:8px;">
+      <span class="shinai-badge"><span class="shinai-badge-icon">🎋</span>${shinai.name}</span>
+    </div>` : '';
+
   // 判定スコア行
   let hanteiRow = '';
   if ((m.hantei_me != null && m.hantei_me !== 0) || (m.hantei_opp != null && m.hantei_opp !== 0)) {
@@ -1193,6 +1260,7 @@ function buildMatchDetailHtml(m, i) {
         <div class="match-vs">第${m.match_order||i+1}試合　vs ${m.opponent||'相手不明'}${m.affiliation?`（${m.affiliation}）`:''}</div>
         <span class="match-result-badge ${badgeCls}">${res}</span>
       </div>
+      ${shinaiHtml}
       <table class="ippon-table">
         <tr><th>場面</th><th>技</th><th>取得</th></tr>
         ${m.ippon1_waza  ?`<tr><td>１本目</td><td>${m.ippon1_waza}</td><td class="${m.ippon1_player==='自分'?'me':'opp'}">${m.ippon1_player||'─'}</td></tr>`:''}
@@ -1275,7 +1343,7 @@ function resetForm() {
   Object.keys(videoMap).forEach(k => delete videoMap[k]);
   Object.keys(hanteiMap).forEach(k => delete hanteiMap[k]);
   ['f-date','f-name','f-venue','f-organizer','f-result-text'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-level').value = '';
+  document.getElementById('f-level').value  = '';
   ['rb-win','rb-lose','rb-draw'].forEach(id => document.getElementById(id).className = 'result-btn');
   document.getElementById('matches-container').innerHTML    = '';
   document.getElementById('form-title').textContent         = '🏆 大会概要';
