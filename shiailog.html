@@ -37,6 +37,9 @@ body {
   min-height: 100vh;
 }
 
+header, .tabs, main { visibility: hidden; }
+body.authed header, body.authed .tabs, body.authed main { visibility: visible; }
+
 header {
   background: var(--ink);
   padding: 16px 20px;
@@ -729,6 +732,23 @@ const STORAGE_BUCKET  = 'shiai-videos';  // Supabase Storage バケット名
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ─── AUTH GUARD ───
+const PORTAL_URL = 'https://yuichiro-masuno.github.io/kendo-nikki/kendo-nikki.html';
+const APP_KEY = 'shiailog';
+
+async function requireAuth() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      window.location.replace(`${PORTAL_URL}?redirect=${APP_KEY}`);
+      return false;
+    }
+    return true;
+  } catch(e) {
+    return true; // 認証確認に失敗した場合はガードなしで通す（保険）
+  }
+}
+
 // ─── STATE ───
 let tournaments    = [];
 let shinaiList     = [];   // 試合用竹刀リスト
@@ -748,6 +768,9 @@ const WAZA_OPTIONS = ['面', '小手', '胴', '突'];
 
 // ─── INIT ───
 (async () => {
+  const authed = await requireAuth();
+  if (!authed) return;
+  document.body.classList.add('authed');
   await syncFromSupabase();    // 試合記録を先に取得・表示
   loadShinaiList();            // 竹刀リストは後で非同期取得（失敗しても影響しない）
 })();
