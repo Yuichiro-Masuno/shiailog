@@ -358,7 +358,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   margin-top: 4px;
 }
 .btn-upload-file:hover { border-color: var(--accent); color: var(--accent); }
-.file-input-hidden { display: none; }
 
 /* ─── BUTTONS ─── */
 .btn-submit {
@@ -947,12 +946,12 @@ function addMatch(data = null) {
 
     <!-- 動画 -->
     <div class="video-section">
-      <div class="video-section-label">📹 試合動画</div>
+      <div class="video-section-label">📹 試合動画（YouTube限定公開リンク）</div>
       <div id="m${idx}-video-list"></div>
-      <input type="file" id="m${idx}-file-input" class="file-input-hidden"
-             accept="video/*" multiple onchange="handleFileSelect(${idx}, this)">
-      <button class="btn-upload-file" onclick="document.getElementById('m${idx}-file-input').click()">
-        ＋ 動画ファイルを追加
+      <input type="text" id="m${idx}-video-url-input" placeholder="YouTubeの限定公開リンクを貼り付け"
+             style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:'Noto Sans JP',sans-serif;font-size:0.85rem;background:var(--white);color:var(--ink);margin-bottom:8px;">
+      <button class="btn-upload-file" onclick="addVideoLink(${idx})">
+        ＋ 動画リンクを追加
       </button>
     </div>
   `;
@@ -976,11 +975,12 @@ function removeMatch(idx) {
 }
 
 // ─── VIDEO ───
-function handleFileSelect(matchIdx, input) {
-  const files = Array.from(input.files);
-  files.forEach(file => {
-    addVideoItem(matchIdx, { file, name: file.name, url: null, status: 'pending' });
-  });
+function addVideoLink(matchIdx) {
+  const input = document.getElementById(`m${matchIdx}-video-url-input`);
+  const url = input.value.trim();
+  if (!url) return;
+  if (!/^https?:\/\//.test(url)) { showToast('URLの形式が正しくありません（httpから始まるリンクを貼り付けてください）'); return; }
+  addVideoItem(matchIdx, { file: null, name: url, url, status: 'done' });
   input.value = '';
 }
 
@@ -998,7 +998,7 @@ function addVideoItem(matchIdx, item) {
   div.innerHTML = `
     <span class="video-item-icon">🎬</span>
     <div class="video-item-info">
-      <div class="video-item-name">${item.name}</div>
+      <div class="video-item-name">${item.url ? `<a href="${item.url}" target="_blank" rel="noopener" style="color:var(--accent);">${item.url.includes('youtu') ? 'YouTube動画を開く' : '動画を開く'}</a>` : item.name}</div>
       <div class="video-item-status ${item.status}" id="m${matchIdx}-vi${itemIdx}-status">
         ${item.status==='done' ? '登録済み' : '未アップロード'}
       </div>
