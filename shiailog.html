@@ -948,7 +948,8 @@ function addMatch(data = null) {
     <div class="video-section">
       <div class="video-section-label">📹 試合動画（YouTube限定公開リンク）</div>
       <div id="m${idx}-video-list"></div>
-      <input type="text" id="m${idx}-video-url-input" placeholder="YouTubeの限定公開リンクを貼り付け"
+      <input type="text" id="m${idx}-video-url-input" placeholder="YouTubeの限定公開リンクを貼り付けてEnter"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();addVideoLink(${idx});}"
              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:'Noto Sans JP',sans-serif;font-size:0.85rem;background:var(--white);color:var(--ink);margin-bottom:8px;">
       <button class="btn-upload-file" onclick="addVideoLink(${idx})">
         ＋ 動画リンクを追加
