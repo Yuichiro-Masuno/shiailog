@@ -751,6 +751,7 @@ async function requireAuth() {
 // ─── STATE ───
 let tournaments    = [];
 let shinaiList     = [];   // 試合用竹刀リスト
+let shinaiNameMap  = {};   // 全竹刀 id → 表示名（過去の試合の表示用）
 let currentPage    = 1;
 const PAGE_SIZE    = 10;
 let editingId      = null;
@@ -779,29 +780,36 @@ async function loadShinaiList() {
   try {
     const { data, error } = await sb
       .from('shinai_master')
-      .select('id, meigara, status')
+      .select('*')
       .order('id');
     if (error) throw error;
-    shinaiList = (data || [])
-      .filter(s => s.status === '試合用')
-      .map(s => ({ id: s.id, name: `${s.id}（${s.meigara || ''}）` }));
+    const rows = data || [];
+    shinaiNameMap = {};
+    rows.forEach(s => { shinaiNameMap[s.id] = `${s.id}（${s.meigara || ''}）`; });
+    // ステータスが「試合用」、または竹刀帳の「試合用」チェックが付いているもの
+    shinaiList = rows
+      .filter(s => s.status === '試合用' || s.is_shiaiyo === true)
+      .map(s => ({ id: s.id, name: shinaiNameMap[s.id] }));
     populateShinaiSelect();
   } catch(e) {
     console.warn('竹刀リスト取得失敗（試合記録には影響しません）:', e);
+    showToast('竹刀リスト取得失敗');
     shinaiList = [];
   }
 }
 
+// 既に表示中の各試合フォームの「使用竹刀」セレクトを最新のリストで作り直す
 function populateShinaiSelect() {
-  const sel = document.getElementById('f-shinai');
-  if (!sel) return;
-  // 既存オプションをクリア（最初の「─ 選択 ─」は残す）
-  while (sel.options.length > 1) sel.remove(1);
-  shinaiList.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.name;
-    sel.appendChild(opt);
+  document.querySelectorAll('.match-entry select[id$="-shinai"]').forEach(sel => {
+    const current = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    shinaiList.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+    sel.value = current;
   });
 }
 
@@ -1240,10 +1248,10 @@ function buildMatchDetailHtml(m, i) {
   const badgeCls = res==='勝ち'?'badge-win':res==='負け'?'badge-lose':res==='引き分け'?'badge-draw':'badge-other';
 
   // 竹刀バッジ
-  const shinai = shinaiList.find(s => s.id === m.shinai_id);
-  const shinaiHtml = shinai ? `
+  const shinaiName = shinaiNameMap[m.shinai_id] || m.shinai_id;
+  const shinaiHtml = shinaiName ? `
     <div style="margin-bottom:8px;">
-      <span class="shinai-badge"><span class="shinai-badge-icon">🎋</span>${shinai.name}</span>
+      <span class="shinai-badge"><span class="shinai-badge-icon">🎋</span>${shinaiName}</span>
     </div>` : '';
 
   // 判定スコア行
